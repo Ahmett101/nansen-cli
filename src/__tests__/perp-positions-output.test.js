@@ -60,7 +60,8 @@ describe('profiler perp-positions tabular output', () => {
     expect(input.data.data.asset_positions).toEqual(positions);
   });
 
-  it.each([null, {}, [null], [{ position: null }], [{ position: [] }], [{ position: 'BTC' }]])(
+  it.each([null, {}, [null], [{ position: null }], [{ position: [] }], [{ position: 'BTC' }],
+    [{}], [{}, { position: { token_symbol: 'BTC' } }], [{ position: {} }]])(
     'preserves malformed position data rather than dropping it: %j', (assetPositions) => {
       const input = { data: { asset_positions: assetPositions } };
       expect(formatTable(input)).toContain('data');

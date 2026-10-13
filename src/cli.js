@@ -474,7 +474,10 @@ function locateTabularRows(data) {
     for (const payload of [data, data?.data, data?.data?.data]) {
       const positions = payload?.asset_positions;
       if (Array.isArray(positions) && positions.every(isPositionEntry)) {
-        return { rows: positions.map(({ position, ...fields }) => ({ ...position, ...fields })) };
+        const rows = positions.map(({ position, ...fields }) => ({ ...position, ...fields }));
+        // A row with no fields renders as a blank line, which tells the reader
+        // less than the JSON fallback does. Treat it as "not the perp shape".
+        if (rows.every(row => Object.keys(row).length > 0)) return { rows };
       }
     }
   }
