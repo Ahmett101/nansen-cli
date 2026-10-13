@@ -456,16 +456,24 @@ export function formatValue(val) {
   return String(val);
 }
 
+// A row of the perp-positions payload: the wrapper plus its nested `position`.
+// `position` may be absent because --fields runs before formatting and can
+// strip it, so a wrapper-only entry is still a row. Anything else in that key
+// means the payload is not the perp shape and belongs in the JSON fallback.
+function isPositionEntry(entry) {
+  if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) return false;
+  const { position } = entry;
+  return position === undefined
+    || (position !== null && typeof position === 'object' && !Array.isArray(position));
+}
+
 // Perp positions wrap each row in `position`. Flatten only for tabular
 // presentation so JSON output retains the API payload and account summaries.
 function locateTabularRows(data) {
   if (data?.success !== false) {
     for (const payload of [data, data?.data, data?.data?.data]) {
       const positions = payload?.asset_positions;
-      if (Array.isArray(positions) && positions.every(entry =>
-        entry?.position !== null && typeof entry?.position === 'object'
-        && !Array.isArray(entry.position),
-      )) {
+      if (Array.isArray(positions) && positions.every(isPositionEntry)) {
         return { rows: positions.map(({ position, ...fields }) => ({ ...position, ...fields })) };
       }
     }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatCsv, formatOutput, formatTable } from '../cli.js';
+import { filterFields, formatCsv, formatOutput, formatTable } from '../cli.js';
 
 const positions = [
   { position: { token_symbol: 'HYPE', size: 0.31, entry_price_usd: 72.169, leverage_value: 2 }, position_type: 'oneWay' },
@@ -70,5 +70,36 @@ describe('profiler perp-positions tabular output', () => {
 
   it('does not add a position_type column when the wrapper omits it', () => {
     expect(formatCsv({ asset_positions: [{ position: { token_symbol: 'BTC' } }] })).toBe('token_symbol\nBTC');
+  });
+
+  // runCLI applies --fields before formatting, so the formatters see rows whose
+  // `position` wrapper has already been filtered down or stripped entirely.
+  describe('after --fields filtering', () => {
+    const filtered = fields => ({
+      success: true,
+      data: filterFields({ data: { asset_positions: positions, margin_summary: { account_value: 100 } } }, fields),
+    });
+
+    it('keeps rows when only a wrapper field survives', () => {
+      expect(formatOutput(filtered(['position_type']), { csv: true }).text).toBe('position_type\noneWay\noneWay');
+      expect(formatOutput(filtered(['position_type']), { table: true }).text).not.toContain('asset_positions');
+    });
+
+    it('keeps rows when only a nested position field survives', () => {
+      expect(formatOutput(filtered(['token_symbol']), { csv: true }).text).toBe('token_symbol\nHYPE\nBTC');
+    });
+
+    it('keeps rows that mix wrapper and nested fields', () => {
+      expect(formatOutput(filtered(['token_symbol', 'position_type']), { csv: true }).text).toBe(
+        'token_symbol,position_type\nHYPE,oneWay\nBTC,oneWay',
+      );
+    });
+  });
+
+  it('renders every row when only some entries carry a position wrapper', () => {
+    const input = { data: { asset_positions: [positions[0], { position_type: 'oneWay' }] } };
+    expect(formatCsv(input)).toBe('token_symbol,size,entry_price_usd,leverage_value,position_type\n'
+      + 'HYPE,0.31,72.169,2,oneWay\n,,,,oneWay');
+    expect(formatTable(input)).not.toContain('asset_positions');
   });
 });
