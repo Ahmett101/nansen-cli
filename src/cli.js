@@ -484,15 +484,20 @@ function locateTabularRows(data) {
   return locateRows(data, { descriptive: true });
 }
 
+// Records for the tabular formatters: the located rows, or the payload itself
+// when nothing matched. Rows that carry no fields at all would render as blank
+// lines, which says less than the payload does, so they take that same
+// fallback. An empty row set is left alone — it means "no results".
+function tabularRecords(data) {
+  if (typeof data !== 'object' || data === null) return [];
+  const rows = locateTabularRows(data)?.rows;
+  if (rows && (rows.length === 0 || rows.some(row => Object.keys(row).length > 0))) return rows;
+  return [Array.isArray(data) ? { data } : data];
+}
+
 // Table formatter for human-readable output
 export function formatTable(data) {
-  // Extract array of records from various response shapes
-  const located = locateTabularRows(data);
-  let records = located?.rows || [];
-  if (!located && typeof data === 'object' && data !== null) {
-    // Single object - convert to array
-    records = [Array.isArray(data) ? { data } : data];
-  }
+  const records = tabularRecords(data);
 
   if (records.length === 0) {
     return 'No data';
@@ -551,12 +556,7 @@ export function formatTable(data) {
  * Format data as CSV with header row
  */
 export function formatCsv(data) {
-  // Extract array of records from various response shapes
-  const located = locateTabularRows(data);
-  let records = located?.rows || [];
-  if (!located && typeof data === 'object' && data !== null) {
-    records = [Array.isArray(data) ? { data } : data];
-  }
+  const records = tabularRecords(data);
 
   if (records.length === 0) return '';
 
