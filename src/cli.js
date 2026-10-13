@@ -470,18 +470,25 @@ function isPositionEntry(entry) {
 // Perp positions wrap each row in `position`. Flatten only for tabular
 // presentation so JSON output retains the API payload and account summaries.
 function locateTabularRows(data) {
+  let sawPositions = false;
   if (data?.success !== false) {
     for (const payload of [data, data?.data, data?.data?.data]) {
       const positions = payload?.asset_positions;
-      if (Array.isArray(positions) && positions.every(isPositionEntry)) {
-        const rows = positions.map(({ position, ...fields }) => ({ ...position, ...fields }));
-        // A row with no fields renders as a blank line, which tells the reader
-        // less than the JSON fallback does. Treat it as "not the perp shape".
-        if (rows.every(row => Object.keys(row).length > 0)) return { rows };
-      }
+      if (!Array.isArray(positions)) continue;
+      sawPositions = true;
+      const rows = positions.every(isPositionEntry)
+        ? positions.map(({ position, ...fields }) => ({ ...position, ...fields }))
+        : null;
+      // A row with no fields renders as a blank line, which tells the reader
+      // less than the JSON fallback does. Treat it as "not the perp shape".
+      if (rows && rows.every(row => Object.keys(row).length > 0)) return { rows };
     }
   }
-  return locateRows(data, { descriptive: true });
+  // An `asset_positions` array that does not hold perp rows is malformed, not
+  // a descriptive row array that happens to share the name. Reading it as one
+  // would drop the wrapper and surface the broken rows as columns, so leave it
+  // to the payload fallback.
+  return sawPositions ? null : locateRows(data, { descriptive: true });
 }
 
 // Records for the tabular formatters: the located rows, or the payload itself

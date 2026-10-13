@@ -69,6 +69,24 @@ describe('profiler perp-positions tabular output', () => {
     },
   );
 
+  // An unwrapped payload is not what the CLI emits, but the formatters are
+  // exported: a malformed `asset_positions` must not be read as a descriptive
+  // row array, which would drop the wrapper and surface `position` as a column.
+  it.each([[{ position: null }], [{ position: [] }], [{ position: 'BTC' }], [null], [{}]])(
+    'preserves a malformed top-level asset_positions payload: %j', (assetPositions) => {
+      const input = { asset_positions: assetPositions };
+      expect(formatCsv(input)).toContain('asset_positions');
+      expect(formatTable(input)).toContain('asset_positions');
+    },
+  );
+
+  it('still flattens a valid top-level asset_positions payload', () => {
+    expect(formatCsv({ asset_positions: positions })).toBe(
+      'token_symbol,size,entry_price_usd,leverage_value,position_type\n'
+      + 'HYPE,0.31,72.169,2,oneWay\nBTC,0,72830,2,oneWay',
+    );
+  });
+
   it('does not add a position_type column when the wrapper omits it', () => {
     expect(formatCsv({ asset_positions: [{ position: { token_symbol: 'BTC' } }] })).toBe('token_symbol\nBTC');
   });
